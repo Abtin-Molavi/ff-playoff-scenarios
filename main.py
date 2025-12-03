@@ -208,7 +208,7 @@ def analyze(player_name, threshold='playoffs'):
     else:
         full_str = " AND \n".join(strings)
         print(full_str)
-    print(f"Here's an example of scenario where {player_name} {'makes the playoffs' if threshold == 'playoffs' else 'gets a first round bye'}...")
+    print(f"Here's an example of a scenario where {player_name} {'makes the playoffs' if threshold == 'playoffs' else 'gets a first round bye'}...")
     example_scenario = scenarios[0]
     outcomes = get_matchup_outcomes(example_scenario, matchups, player_to_index)
     print("Matchup outcomes:")
@@ -225,4 +225,4 @@ def analyze(player_name, threshold='playoffs'):
 
 
 if __name__ == "__main__":
-    analyze("Brandon", threshold='playoffs')
+    analyze("Seth", threshold='playoffs')
