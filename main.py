@@ -20,8 +20,8 @@ matchups = [
     (3, 4),
     (2, 9), 
     (7, 1),
-    (8, 5),
-    (0, 6),
+    (8, 6),
+    (0, 5),
 ]
 
 def add_contraints():
@@ -225,4 +225,4 @@ def analyze(player_name, threshold='playoffs'):
 
 
 if __name__ == "__main__":
-    analyze("Seth", threshold='playoffs')
+    analyze("Sam", threshold='bye')
