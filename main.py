@@ -24,8 +24,8 @@ matchups = [
     (3, 4),
     (2, 9),
     (7, 1),
-    (8, 5),
-    (0, 6),
+    (8, 6),
+    (0, 5),
 ]
 
 def load_data_from_folder(data_dir="data", no_cache=False):
