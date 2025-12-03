@@ -1,6 +1,10 @@
 import itertools
 import z3
+import argparse
+from pathlib import Path
+from extract_data import extract_data_from_data_folder, match_player_name
 
+# Default values (can be overridden by loading from screenshot)
 player_to_index = {
     "Ben" : 0,
     "Seth" : 1,
@@ -12,17 +16,32 @@ player_to_index = {
     "Nate" : 7,
     "Adam" : 8,
     "Brandon" : 9,
-}   
+}
 
 current_wins = (10, 7,7,7,6,6,6,6,5,5)
 current_points = (146426, 145224, 141226, 137248, 149036, 141716, 137510, 130564, 138424, 134000)
 matchups = [
     (3, 4),
-    (2, 9), 
+    (2, 9),
     (7, 1),
     (8, 5),
     (0, 6),
 ]
+
+def load_data_from_folder(data_dir="data", no_cache=False):
+    """Load fantasy football data from the data folder with table and scoreboard images."""
+    global player_to_index, current_wins, current_points, matchups
+
+    print(f"Loading data from {data_dir}/ folder...")
+    data = extract_data_from_data_folder(data_dir, None, no_cache)
+
+    player_to_index = data["player_to_index"]
+    current_wins = data["current_wins"]
+    current_points = data["current_points"]
+    matchups = data["matchups"]
+
+    print(f"Loaded {len(player_to_index)} players and {len(matchups)} matchups")
+    return data
 
 def add_contraints():
     solver = z3.Solver()
@@ -225,4 +244,55 @@ def analyze(player_name, threshold='playoffs'):
 
 
 if __name__ == "__main__":
-    analyze("Seth", threshold='playoffs')
+    parser = argparse.ArgumentParser(
+        description="Analyze fantasy football playoff scenarios"
+    )
+    parser.add_argument(
+        "--data-dir",
+        "-d",
+        type=str,
+        default='./data',
+        help="Path to data directory containing table/ and scoreboard/ subdirectories with images"
+    )
+    parser.add_argument(
+        "--player",
+        "-p",
+        type=str,
+        default="Seth",
+        help="Player name to analyze (default: Seth)"
+    )
+    parser.add_argument(
+        "--threshold",
+        "-t",
+        type=str,
+        choices=["playoffs", "bye"],
+        default="playoffs",
+        help="Analysis threshold: 'playoffs' (top 6) or 'bye' (top 2) (default: playoffs)"
+    )
+    parser.add_argument(
+        "--no-cache", action='store_true',
+        help="Bypass cache and fetch fresh data from API"
+    )
+
+    args = parser.parse_args()
+
+    # Load data from folder if provided
+    player_name = args.player
+    if args.data_dir:
+        load_data_from_folder(args.data_dir, args.no_cache)
+        # Verify the player name exists in the loaded data
+        if player_name not in player_to_index:
+            print(f"Warning: Player '{player_name}' not found in loaded data.")
+            print(f"Available players: {', '.join(player_to_index.keys())}")
+            # Use AI to find the best match
+            try:
+                matched_name = match_player_name(player_name, list(player_to_index.keys()))
+                player_name = matched_name
+                print(f"Using matched player: {player_name}")
+            except ValueError as e:
+                print(f"Error: {e}")
+                print("Please specify a valid player name with --player")
+                exit(1)
+
+    # Run analysis
+    analyze(player_name, threshold=args.threshold)

@@ -1,9 +1,10 @@
 [project]
 name = "playoff-scenarios"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Fantasy football playoff scenario analyzer with automatic screenshot extraction"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "z3-solver>=4.15.4.0",
+    "anthropic>=0.40.0",
 ]
