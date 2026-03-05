@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import z3
 
@@ -24,7 +25,7 @@ matchups = [
     (0, 5),
 ]
 
-def add_contraints():
+def add_constraints():
     solver = z3.Solver()
     # variables for centipoints scored this week
     points = [z3.Int(f"points_{i}") for i in range(len(player_to_index))]
@@ -61,7 +62,7 @@ def add_contraints():
     return solver, place, wins, points
 
 def get_scenarios(player_place_list):
-    solver, place, wins, points = add_contraints()
+    solver, place, wins, points = add_constraints()
     for player, final_place in player_place_list:
         player_index = player_to_index[player]
         solver.add(place[player_index] <= final_place)
@@ -106,7 +107,7 @@ def subsumes(existing, candidate):
     return False
 
 def search_for_sufficient_conditions(player_place_list, matchups):
-    solver, place, wins, points = add_contraints()
+    solver, place, wins, points = add_constraints()
     for player, final_place in player_place_list:
         player_index = player_to_index[player]
         solver.add(place[player_index] > final_place)
@@ -160,21 +161,22 @@ def get_necessary_outcomes(scenarios):
 def analyze(player_name, threshold='playoffs'):
     if threshold == 'playoffs':
         final_place = 6
-    elif threshold == 'bye':
-        final_place = 2
-    if threshold == 'playoffs':
-        print(f"Analyzing scenarios for {player_name} to make the playoffs...")
+        goal = "make the playoffs"
+        goal_ing = "making the playoffs"
     else:
-        print(f"Analyzing scenarios for {player_name} to get a first round bye...")
+        final_place = 2
+        goal = "get a first round bye"
+        goal_ing = "getting a first round bye"
+    print(f"Analyzing scenarios for {player_name} to {goal}...")
     scenarios = get_scenarios([(player_name, final_place)])
     print(len(scenarios), "scenarios found.")
     if len(scenarios) == 0:
-        print(f"Bummer, {player_name} cannot {'make the playoffs' if threshold == 'playoffs' else 'get a first round bye'} under any circumstances.")
+        print(f"Bummer, {player_name} cannot {goal} under any circumstances.")
         return
     necessary_outcomes = get_necessary_outcomes(scenarios)
     sufficient_conditions = search_for_sufficient_conditions([(player_name, final_place)], matchups)
     index_to_player = {v: k for k, v in player_to_index.items()}
-    print(f"If these outcomes occur, then {player_name} is guaranteed to {'make the playoffs' if threshold == 'playoffs' else 'get a first round bye'}...")
+    print(f"If these outcomes occur, then {player_name} is guaranteed to {goal}...")
     if not sufficient_conditions:
         print("  None found.")
     for i, cond in enumerate(sufficient_conditions):
@@ -193,7 +195,7 @@ def analyze(player_name, threshold='playoffs'):
             return
         full_str = " AND \n".join(strings)
         print(full_str)
-    print(f"{player_name} needs these results to have a shot at {'making the playoffs' if threshold == 'playoffs' else 'getting a first round bye'}...")
+    print(f"{player_name} needs these results to have a shot at {goal_ing}...")
     strings = []
     for i, (p1, p2) in enumerate(matchups):
         outcome = necessary_outcomes[i]
@@ -208,7 +210,7 @@ def analyze(player_name, threshold='playoffs'):
     else:
         full_str = " AND \n".join(strings)
         print(full_str)
-    print(f"Here's an example of a scenario where {player_name} {'makes the playoffs' if threshold == 'playoffs' else 'gets a first round bye'}...")
+    print(f"Here's an example of a scenario where {player_name} {goal_ing}...")
     example_scenario = scenarios[0]
     outcomes = get_matchup_outcomes(example_scenario, matchups, player_to_index)
     print("Matchup outcomes:")
@@ -225,4 +227,8 @@ def analyze(player_name, threshold='playoffs'):
 
 
 if __name__ == "__main__":
-    analyze("Sam", threshold='bye')
+    parser = argparse.ArgumentParser(description="Analyze fantasy football playoff scenarios.")
+    parser.add_argument("player", choices=list(player_to_index.keys()), help="Player name to analyze")
+    parser.add_argument("threshold", choices=["playoffs", "bye"], help="Goal: 'playoffs' (top 6) or 'bye' (top 2)")
+    args = parser.parse_args()
+    analyze(args.player, threshold=args.threshold)
