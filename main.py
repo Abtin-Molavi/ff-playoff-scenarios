@@ -1,29 +1,34 @@
 import argparse
 import itertools
+import os
 import z3
 
-player_to_index = {
-    "Ben" : 0,
-    "Seth" : 1,
-    "Kevin T"  : 2,
-    "Kevin P" : 3,
-    "Abtin" : 4,
-    "Sam" : 5,
-    "Danny" : 6,
-    "Nate" : 7,
-    "Adam" : 8,
-    "Brandon" : 9,
-}   
+# These globals are populated at startup from ESPN (or kept as-is for offline use)
+player_to_index = {}
+current_wins = ()
+current_points = ()
+matchups = []
 
-current_wins = (10, 7,7,7,6,6,6,6,5,5)
-current_points = (146426, 145224, 141226, 137248, 149036, 141716, 137510, 130564, 138424, 134000)
-matchups = [
-    (3, 4),
-    (2, 9), 
-    (7, 1),
-    (8, 6),
-    (0, 5),
-]
+
+def fetch_espn_data(league_id, year, week, espn_s2=None, swid=None):
+    from espn_api.football import League
+    league = League(league_id=league_id, year=year, espn_s2=espn_s2, swid=swid)
+    teams = league.teams
+
+    p_to_i = {team.owner: i for i, team in enumerate(teams)}
+    wins = tuple(team.wins for team in teams)
+    # ESPN points_for is a float like 1464.26; store as centipoints (int) to match existing code
+    points = tuple(int(round(team.points_for * 100)) for team in teams)
+
+    team_to_idx = {team: i for i, team in enumerate(teams)}
+    box_scores = league.box_scores(week)
+    mups = []
+    for box in box_scores:
+        if box.home_team and box.away_team:
+            mups.append((team_to_idx[box.home_team], team_to_idx[box.away_team]))
+
+    return p_to_i, wins, points, mups
+
 
 def add_constraints():
     solver = z3.Solver()
@@ -228,7 +233,27 @@ def analyze(player_name, threshold='playoffs'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze fantasy football playoff scenarios.")
-    parser.add_argument("player", choices=list(player_to_index.keys()), help="Player name to analyze")
+    parser.add_argument("--league-id", type=int, required=True, help="ESPN league ID")
+    parser.add_argument("--year", type=int, required=True, help="Season year (e.g. 2024)")
+    parser.add_argument("--week", type=int, required=True, help="Week number to analyze")
+    parser.add_argument("--espn-s2", default=os.environ.get("ESPN_S2"), help="ESPN espn_s2 cookie (or set ESPN_S2 env var)")
+    parser.add_argument("--swid", default=os.environ.get("ESPN_SWID"), help="ESPN SWID cookie (or set ESPN_SWID env var)")
     parser.add_argument("threshold", choices=["playoffs", "bye"], help="Goal: 'playoffs' (top 6) or 'bye' (top 2)")
     args = parser.parse_args()
-    analyze(args.player, threshold=args.threshold)
+
+    print("Fetching league data from ESPN...")
+    player_to_index, current_wins, current_points, matchups = fetch_espn_data(
+        league_id=args.league_id,
+        year=args.year,
+        week=args.week,
+        espn_s2=args.espn_s2,
+        swid=args.swid,
+    )
+    print(f"Loaded {len(player_to_index)} teams: {', '.join(player_to_index.keys())}")
+
+    player = input("Enter player name to analyze: ").strip()
+    if player not in player_to_index:
+        print(f"Unknown player '{player}'. Available: {', '.join(player_to_index.keys())}")
+        exit(1)
+
+    analyze(player, threshold=args.threshold)
